@@ -66,6 +66,10 @@ h1 {
   padding: 0 14px 10px;
 }
 
+.toolbar.actions-row button {
+  flex: 1;
+}
+
 #search {
   flex: 1;
   min-width: 0;
@@ -180,4 +184,56 @@ button.primary:hover {
   text-align: center;
   color: var(--muted);
   padding: 24px 12px;
+}
+
+.window-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.window-header .current-tag {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.duplicate-tag {
+  background: #f59e0b22;
+  color: #b45309;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+footer {
+  border-top: 1px solid var(--border);
+  padding: 6px 14px;
+  text-align: center;
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 4px;
+  text-decoration: underline;
+}
+
+.link-btn:hover {
+  color: var(--accent);
+  background: none;
 }

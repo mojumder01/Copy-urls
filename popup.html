@@ -13,7 +13,11 @@
 
     <div class="toolbar">
       <input id="search" type="search" placeholder="Filter tabs..." />
+    </div>
+
+    <div class="toolbar actions-row">
       <button id="copy-all" class="primary">Copy All URLs</button>
+      <button id="close-duplicates">Close Duplicates</button>
     </div>
 
     <p id="copy-status" class="status" hidden></p>
@@ -21,6 +25,10 @@
     <ul id="tab-list"></ul>
 
     <p id="empty-state" class="empty" hidden>No tabs match your search.</p>
+
+    <footer>
+      <button id="edit-shortcut" class="link-btn">Customize keyboard shortcut</button>
+    </footer>
 
     <script src="popup.js"></script>
   </body>

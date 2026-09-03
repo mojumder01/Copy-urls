@@ -4,21 +4,25 @@ A Chrome extension that shows how many tabs you have open, lets you copy all URL
 
 ## Features
 
-- Live count of all open tabs (across all windows), shown as a badge next to the title.
+- **Toolbar badge** — the open-tab count is always visible on the extension icon itself (top-right corner), no click needed.
 - **Copy All URLs** — copies every open tab's URL (newline-separated) to the clipboard in one click. If a search filter is active, only the filtered URLs are copied.
+- **Grouped by window** — tabs are listed under "Window 1", "Window 2", etc., with the currently focused window tagged `current`.
+- **Close Duplicates** — one click closes every tab that shares a URL with an earlier tab, keeping the first of each.
 - Per-tab actions: switch to a tab, copy just its URL, or close it — without leaving the popup.
-- Search box to filter the list by title or URL.
-- List stays in sync automatically as tabs open, close, or navigate.
+- Search box to filter the list by title or URL (badge/count still reflects the true total; Copy All respects the active filter).
+- **Keyboard shortcut** to open the popup (default `Ctrl+Shift+U` / `Cmd+Shift+U` on Mac) — fully user-editable. Use the "Customize keyboard shortcut" link in the popup footer, or go to `chrome://extensions/shortcuts` directly.
+- List and badge stay in sync automatically as tabs open, close, or move between windows.
 
 ## Installing (unpacked, for development)
 
 1. Open `chrome://extensions` in Chrome.
 2. Enable **Developer mode** (top-right toggle).
 3. Click **Load unpacked** and select this folder.
-4. Click the extension icon in the toolbar to open the popup.
+4. Click the extension icon in the toolbar (or press the keyboard shortcut) to open the popup.
 
 ## Files
 
-- `manifest.json` — Manifest V3 config (`tabs` + `clipboardWrite` permissions, popup action).
+- `manifest.json` — Manifest V3 config (`tabs` + `clipboardWrite` permissions, popup action, keyboard command).
+- `background.js` — service worker that keeps the toolbar badge count up to date.
 - `popup.html` / `popup.css` / `popup.js` — the popup UI and logic.
 - `icons/` — toolbar/extension icons.

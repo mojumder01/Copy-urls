@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Tab URL Manager",
-  "description": "See how many tabs are open, copy all URLs with one click, and close individual tabs.",
+  "description": "See how many tabs are open (toolbar badge), copy all URLs with one click, group tabs by window, close duplicates, and remove individual tabs.",
   "version": "1.0.0",
   "permissions": ["tabs", "clipboardWrite"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Tab URL Manager",
@@ -17,5 +20,14 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+U",
+        "mac": "Command+Shift+U"
+      },
+      "description": "Open Tab URL Manager"
+    }
   }
 }
