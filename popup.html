@@ -30,15 +30,82 @@
 
     <p id="copy-status" class="status" hidden></p>
 
+    <details id="copy-settings-panel" class="panel">
+      <summary>Copy Settings</summary>
+
+      <div class="settings-grid">
+        <div class="settings-col">
+          <div class="settings-label">Include</div>
+          <label class="radio"><input type="radio" name="copy-scope" value="all" checked /> Copy All URLs</label>
+          <label class="radio"><input type="radio" name="copy-scope" value="web" /> Only web-pages (<i>http://</i> and <i>https://</i> pages)</label>
+
+          <div class="settings-label">Export tabs from</div>
+          <label class="radio"><input type="radio" name="copy-export-from" value="all" checked /> All windows</label>
+          <label class="radio"><input type="radio" name="copy-export-from" value="current" /> Current (active) window</label>
+        </div>
+        <div class="settings-col">
+          <div class="settings-label">Format</div>
+          <label class="radio"><input type="radio" name="copy-format" value="url" checked /> URLs only: {url}</label>
+          <label class="radio"><input type="radio" name="copy-format" value="titleUrl" /> Title and URL: {title}\n{url}\n</label>
+          <label class="radio"><input type="radio" name="copy-format" value="html" /> HTML: &lt;a href="{url}"&gt;{title}&lt;/a&gt;</label>
+          <label class="radio"><input type="radio" name="copy-format" value="csv" /> CSV: "{title}","{url}"</label>
+          <label class="radio"><input type="radio" name="copy-format" value="json" /> JSON</label>
+          <label class="radio"><input type="radio" name="copy-format" value="custom" /> Custom</label>
+          <input id="copy-custom-template" type="text" placeholder="{title} - {url}" hidden />
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button id="restore-copy-defaults">Restore default settings</button>
+        <button id="copy-help" class="link-btn">Help</button>
+      </div>
+    </details>
+
     <details id="open-urls-panel" class="panel">
       <summary>Open URLs</summary>
-      <textarea id="open-urls-input" placeholder="Paste one URL per line, then Open All..." rows="4"></textarea>
+
+      <div class="textarea-toolbar">
+        <button id="paste-urls" class="link-btn">Paste</button>
+        <button id="copy-urls-input" class="link-btn">Copy</button>
+        <button id="clear-urls-input" class="link-btn">Clear</button>
+        <button id="extract-urls" class="link-btn">Extract URLs from text</button>
+      </div>
+      <textarea id="open-urls-input" placeholder="URL list (one per line)..." rows="4"></textarea>
+
+      <div class="settings-grid">
+        <div class="settings-col">
+          <label class="checkbox">
+            <input type="checkbox" id="opt-no-load" />
+            Do not load tabs until selected
+            <span class="info-dot" title="Opens each tab but keeps it unloaded (discarded) until you click it.">ⓘ</span>
+          </label>
+          <label class="checkbox"><input type="checkbox" id="opt-random-order" /> Load in random order</label>
+          <label class="checkbox"><input type="checkbox" id="opt-reverse-order" /> Load in reverse order</label>
+          <label class="checkbox"><input type="checkbox" id="opt-ignore-duplicates" checked /> Ignore duplicate URLs</label>
+          <label class="checkbox"><input type="checkbox" id="opt-non-url-search" checked /> Handle non-URLs as search queries</label>
+
+          <div class="settings-label">Tab group</div>
+          <select id="tab-group-select">
+            <option value="none">No Tab Group</option>
+            <option value="new">New Tab Group</option>
+          </select>
+        </div>
+        <div class="settings-col">
+          <label class="radio"><input type="radio" name="open-mode" value="tab" checked /> Open each URL in new tab</label>
+          <label class="radio"><input type="radio" name="open-mode" value="window" /> Open each URL in separate new window</label>
+          <label class="radio">
+            <input type="radio" name="open-mode" value="first-n" />
+            Open only the first <input id="open-first-n" type="number" min="1" value="25" /> URLs
+          </label>
+
+          <label class="checkbox"><input type="checkbox" id="opt-preserve-input" /> Preserve input</label>
+          <label class="checkbox"><input type="checkbox" id="opt-remove-opened" /> Remove opened URLs from the list</label>
+          <label class="checkbox"><input type="checkbox" id="opt-remember-list" /> Remember the URL List</label>
+        </div>
+      </div>
+
       <div class="panel-actions">
-        <label class="checkbox">
-          <input type="checkbox" id="open-new-window" />
-          Open in a new window
-        </label>
-        <button id="open-urls-btn" class="primary">Open All</button>
+        <button id="open-urls-btn" class="primary">Open URLs (0)</button>
       </div>
     </details>
 

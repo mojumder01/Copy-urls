@@ -10,9 +10,27 @@ const editShortcutBtn = document.getElementById("edit-shortcut");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const copyStatusEl = document.getElementById("copy-status");
 const versionEl = document.getElementById("version");
+
 const openUrlsInput = document.getElementById("open-urls-input");
 const openUrlsBtn = document.getElementById("open-urls-btn");
-const openNewWindowCheckbox = document.getElementById("open-new-window");
+const pasteUrlsBtn = document.getElementById("paste-urls");
+const copyUrlsInputBtn = document.getElementById("copy-urls-input");
+const clearUrlsInputBtn = document.getElementById("clear-urls-input");
+const extractUrlsBtn = document.getElementById("extract-urls");
+const optNoLoad = document.getElementById("opt-no-load");
+const optRandomOrder = document.getElementById("opt-random-order");
+const optReverseOrder = document.getElementById("opt-reverse-order");
+const optIgnoreDuplicates = document.getElementById("opt-ignore-duplicates");
+const optNonUrlSearch = document.getElementById("opt-non-url-search");
+const optPreserveInput = document.getElementById("opt-preserve-input");
+const optRemoveOpened = document.getElementById("opt-remove-opened");
+const optRememberList = document.getElementById("opt-remember-list");
+const tabGroupSelect = document.getElementById("tab-group-select");
+const openFirstNInput = document.getElementById("open-first-n");
+
+const copyCustomTemplateEl = document.getElementById("copy-custom-template");
+const restoreCopyDefaultsBtn = document.getElementById("restore-copy-defaults");
+const copyHelpBtn = document.getElementById("copy-help");
 
 versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 
@@ -277,7 +295,7 @@ function buildTabItem(tab, isDuplicate) {
   return li;
 }
 
-// --- actions ---
+// --- tab actions ---
 
 async function switchToTab(tab) {
   await chrome.tabs.update(tab.id, { active: true });
@@ -293,13 +311,6 @@ async function closeTab(tabId) {
   await chrome.tabs.remove(tabId);
   allTabs = allTabs.filter((t) => t.id !== tabId);
   render();
-}
-
-async function copyAllUrls() {
-  const source = filterTabs();
-  const urls = source.map((tab) => tab.url).filter(Boolean).join("\n");
-  await navigator.clipboard.writeText(urls);
-  showStatus(`Copied ${source.length} URL${source.length === 1 ? "" : "s"}`);
 }
 
 async function closeDuplicateTabs() {
@@ -358,35 +369,327 @@ function openShortcutSettings() {
   chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
 }
 
-function toOpenableUrl(rawLine) {
-  const trimmed = rawLine.trim();
-  if (!trimmed) return null;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return trimmed;
-  if (/^[\w-]+(\.[\w-]+)+([/?#].*)?$/.test(trimmed)) return `https://${trimmed}`;
+// --- Copy Settings ---
+
+const DEFAULT_COPY_SETTINGS = {
+  scope: "all",
+  exportFrom: "all",
+  format: "url",
+  customTemplate: "{title} - {url}",
+};
+
+let copySettings = { ...DEFAULT_COPY_SETTINGS };
+
+function applyCopySettingsToForm() {
+  document.querySelector(`input[name="copy-scope"][value="${copySettings.scope}"]`).checked = true;
+  document.querySelector(
+    `input[name="copy-export-from"][value="${copySettings.exportFrom}"]`
+  ).checked = true;
+  document.querySelector(`input[name="copy-format"][value="${copySettings.format}"]`).checked = true;
+  copyCustomTemplateEl.value = copySettings.customTemplate;
+  copyCustomTemplateEl.hidden = copySettings.format !== "custom";
+}
+
+function readCopySettingsFromForm() {
+  copySettings = {
+    scope: document.querySelector('input[name="copy-scope"]:checked').value,
+    exportFrom: document.querySelector('input[name="copy-export-from"]:checked').value,
+    format: document.querySelector('input[name="copy-format"]:checked').value,
+    customTemplate: copyCustomTemplateEl.value || DEFAULT_COPY_SETTINGS.customTemplate,
+  };
+  copyCustomTemplateEl.hidden = copySettings.format !== "custom";
+}
+
+async function persistCopySettings() {
+  readCopySettingsFromForm();
+  await chrome.storage.local.set({ copySettings });
+}
+
+async function loadCopySettings() {
+  const { copySettings: stored } = await chrome.storage.local.get("copySettings");
+  copySettings = { ...DEFAULT_COPY_SETTINGS, ...(stored || {}) };
+  applyCopySettingsToForm();
+}
+
+async function restoreCopyDefaults() {
+  copySettings = { ...DEFAULT_COPY_SETTINGS };
+  applyCopySettingsToForm();
+  await chrome.storage.local.set({ copySettings });
+  showStatus("Copy settings restored to defaults");
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
+function formatTabsForCopy(tabs) {
+  const rows = tabs.map((t) => ({ title: t.title || t.url || "", url: t.url || "" }));
+
+  switch (copySettings.format) {
+    case "titleUrl":
+      return rows.map((r) => `${r.title}\n${r.url}`).join("\n\n");
+    case "html":
+      return rows
+        .map((r) => `<a href="${escapeHtml(r.url)}">${escapeHtml(r.title)}</a>`)
+        .join("\n");
+    case "csv":
+      return rows
+        .map((r) => `"${r.title.replace(/"/g, '""')}","${r.url.replace(/"/g, '""')}"`)
+        .join("\n");
+    case "json":
+      return JSON.stringify(rows, null, 2);
+    case "custom":
+      return rows
+        .map((r) => copySettings.customTemplate.replaceAll("{title}", r.title).replaceAll("{url}", r.url))
+        .join("\n");
+    case "url":
+    default:
+      return rows.map((r) => r.url).join("\n");
+  }
+}
+
+function getCopySourceTabs() {
+  let source = filterTabs();
+  if (copySettings.exportFrom === "current") {
+    source = source.filter((t) => t.windowId === currentWindowId);
+  }
+  if (copySettings.scope === "web") {
+    source = source.filter((t) => /^https?:\/\//i.test(t.url || ""));
+  }
+  return source.filter((t) => t.url);
+}
+
+async function copyAllUrls() {
+  const source = getCopySourceTabs();
+  if (source.length === 0) {
+    showStatus("No matching tabs to copy");
+    return;
+  }
+  const text = formatTabsForCopy(source);
+  await navigator.clipboard.writeText(text);
+  showStatus(`Copied ${source.length} URL${source.length === 1 ? "" : "s"}`);
+}
+
+// --- Open URLs settings ---
+
+const DEFAULT_OPEN_SETTINGS = {
+  noLoad: false,
+  randomOrder: false,
+  reverseOrder: false,
+  ignoreDuplicates: true,
+  nonUrlSearch: true,
+  mode: "tab",
+  firstN: 25,
+  tabGroup: "none",
+  preserveInput: false,
+  removeOpened: false,
+  rememberList: false,
+};
+
+let openSettings = { ...DEFAULT_OPEN_SETTINGS };
+
+function applyOpenSettingsToForm() {
+  optNoLoad.checked = openSettings.noLoad;
+  optRandomOrder.checked = openSettings.randomOrder;
+  optReverseOrder.checked = openSettings.reverseOrder;
+  optIgnoreDuplicates.checked = openSettings.ignoreDuplicates;
+  optNonUrlSearch.checked = openSettings.nonUrlSearch;
+  optPreserveInput.checked = openSettings.preserveInput;
+  optRemoveOpened.checked = openSettings.removeOpened;
+  optRememberList.checked = openSettings.rememberList;
+  tabGroupSelect.value = openSettings.tabGroup;
+  openFirstNInput.value = openSettings.firstN;
+  document.querySelector(`input[name="open-mode"][value="${openSettings.mode}"]`).checked = true;
+}
+
+function readOpenSettingsFromForm() {
+  openSettings = {
+    noLoad: optNoLoad.checked,
+    randomOrder: optRandomOrder.checked,
+    reverseOrder: optReverseOrder.checked,
+    ignoreDuplicates: optIgnoreDuplicates.checked,
+    nonUrlSearch: optNonUrlSearch.checked,
+    mode: document.querySelector('input[name="open-mode"]:checked').value,
+    firstN: parseInt(openFirstNInput.value, 10) || 25,
+    tabGroup: tabGroupSelect.value,
+    preserveInput: optPreserveInput.checked,
+    removeOpened: optRemoveOpened.checked,
+    rememberList: optRememberList.checked,
+  };
+}
+
+async function persistOpenSettings() {
+  readOpenSettingsFromForm();
+  await chrome.storage.local.set({ openSettings });
+  if (!openSettings.rememberList) {
+    await chrome.storage.local.remove("openUrlListText");
+  } else {
+    await chrome.storage.local.set({ openUrlListText: openUrlsInput.value });
+  }
+}
+
+async function loadOpenSettings() {
+  const { openSettings: stored, openUrlListText } = await chrome.storage.local.get([
+    "openSettings",
+    "openUrlListText",
+  ]);
+  openSettings = { ...DEFAULT_OPEN_SETTINGS, ...(stored || {}) };
+  applyOpenSettingsToForm();
+  if (openSettings.rememberList && openUrlListText) {
+    openUrlsInput.value = openUrlListText;
+  }
+}
+
+function parseUrlLines(text) {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+}
+
+function toOpenableUrl(rawLine, handleNonUrlAsSearch) {
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(rawLine)) return rawLine;
+  if (/^[\w-]+(\.[\w-]+)+([/?#].*)?$/.test(rawLine)) return `https://${rawLine}`;
+  if (handleNonUrlAsSearch) {
+    return `https://www.google.com/search?q=${encodeURIComponent(rawLine)}`;
+  }
   return null;
 }
 
-async function openUrlsFromInput() {
-  const rawLines = openUrlsInput.value.split("\n");
-  const urls = [...new Set(rawLines.map(toOpenableUrl).filter(Boolean))];
+function buildEntriesToOpen() {
+  readOpenSettingsFromForm();
+  const rawLines = parseUrlLines(openUrlsInput.value);
+  let entries = rawLines
+    .map((line) => ({ line, url: toOpenableUrl(line, openSettings.nonUrlSearch) }))
+    .filter((e) => e.url);
 
-  if (urls.length === 0) {
+  if (openSettings.ignoreDuplicates) {
+    const seen = new Set();
+    entries = entries.filter((e) => {
+      if (seen.has(e.url)) return false;
+      seen.add(e.url);
+      return true;
+    });
+  }
+
+  if (openSettings.reverseOrder) entries.reverse();
+  if (openSettings.randomOrder) {
+    for (let i = entries.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [entries[i], entries[j]] = [entries[j], entries[i]];
+    }
+  }
+
+  if (openSettings.mode === "first-n") {
+    entries = entries.slice(0, openSettings.firstN);
+  }
+
+  return entries;
+}
+
+function updateOpenUrlsButtonLabel() {
+  readOpenSettingsFromForm();
+  const count = buildEntriesToOpen().length;
+  openUrlsBtn.textContent = `Open URLs (${count})`;
+}
+
+async function openUrlsFromInput() {
+  const entries = buildEntriesToOpen();
+  if (entries.length === 0) {
     showStatus("Paste at least one valid URL");
     return;
   }
 
-  if (openNewWindowCheckbox.checked) {
-    await chrome.windows.create({ url: urls });
+  const createdTabIds = [];
+
+  if (openSettings.mode === "window") {
+    for (const entry of entries) {
+      const win = await chrome.windows.create({ url: entry.url });
+      const createdTab = win.tabs && win.tabs[0];
+      if (openSettings.noLoad && createdTab) {
+        try {
+          await chrome.tabs.discard(createdTab.id);
+        } catch {
+          // discard can fail on the active tab of a brand-new window; ignore
+        }
+      }
+    }
   } else {
-    for (const url of urls) {
-      await chrome.tabs.create({ url, active: false });
+    for (const entry of entries) {
+      const tab = await chrome.tabs.create({ url: entry.url, active: false });
+      createdTabIds.push(tab.id);
+    }
+    if (openSettings.noLoad) {
+      for (const id of createdTabIds) {
+        try {
+          await chrome.tabs.discard(id);
+        } catch {
+          // ignore tabs that can't be discarded
+        }
+      }
+    }
+    if (openSettings.tabGroup === "new" && createdTabIds.length > 0 && chrome.tabs.group) {
+      try {
+        const groupId = await chrome.tabs.group({ tabIds: createdTabIds });
+        await chrome.tabGroups.update(groupId, { title: "Opened URLs" });
+      } catch {
+        // tab groups may be unavailable in this Chrome version; ignore
+      }
     }
   }
 
-  openUrlsInput.value = "";
-  showStatus(`Opened ${urls.length} URL${urls.length === 1 ? "" : "s"}`);
+  if (openSettings.removeOpened) {
+    const openedLines = new Set(entries.map((e) => e.line));
+    const remaining = parseUrlLines(openUrlsInput.value).filter((l) => !openedLines.has(l));
+    openUrlsInput.value = remaining.join("\n");
+  } else if (!openSettings.preserveInput) {
+    openUrlsInput.value = "";
+  }
+
+  if (openSettings.rememberList) {
+    await chrome.storage.local.set({ openUrlListText: openUrlsInput.value });
+  }
+
+  updateOpenUrlsButtonLabel();
+  showStatus(`Opened ${entries.length} URL${entries.length === 1 ? "" : "s"}`);
   await loadTabs();
 }
+
+const URL_IN_TEXT_REGEX = /\bhttps?:\/\/[^\s<>"')\]]+/gi;
+
+function extractUrlsFromText() {
+  const matches = openUrlsInput.value.match(URL_IN_TEXT_REGEX) || [];
+  if (matches.length === 0) {
+    showStatus("No URLs found in text");
+    return;
+  }
+  openUrlsInput.value = matches.join("\n");
+  updateOpenUrlsButtonLabel();
+}
+
+async function pasteIntoUrlsInput() {
+  try {
+    const text = await navigator.clipboard.readText();
+    openUrlsInput.value = text;
+    updateOpenUrlsButtonLabel();
+  } catch {
+    showStatus("Clipboard read was blocked");
+  }
+}
+
+async function copyUrlsInputToClipboard() {
+  await navigator.clipboard.writeText(openUrlsInput.value);
+  showStatus("Copied input to clipboard");
+}
+
+function clearUrlsInput() {
+  openUrlsInput.value = "";
+  updateOpenUrlsButtonLabel();
+}
+
+// --- wire-up ---
 
 searchEl.addEventListener("input", render);
 sortByEl.addEventListener("change", (e) => setSortBy(e.target.value));
@@ -395,7 +698,31 @@ closeDuplicatesBtn.addEventListener("click", closeDuplicateTabs);
 exportBookmarksBtn.addEventListener("click", exportAsBookmarks);
 editShortcutBtn.addEventListener("click", openShortcutSettings);
 themeToggleBtn.addEventListener("click", cycleTheme);
+
+document.querySelectorAll('#copy-settings-panel input[type="radio"]').forEach((el) => {
+  el.addEventListener("change", persistCopySettings);
+});
+copyCustomTemplateEl.addEventListener("change", persistCopySettings);
+restoreCopyDefaultsBtn.addEventListener("click", restoreCopyDefaults);
+copyHelpBtn.addEventListener("click", () => {
+  chrome.tabs.create({ url: "https://github.com/mojumder01/Copy-urls#readme" });
+});
+
 openUrlsBtn.addEventListener("click", openUrlsFromInput);
+openUrlsInput.addEventListener("input", updateOpenUrlsButtonLabel);
+pasteUrlsBtn.addEventListener("click", pasteIntoUrlsInput);
+copyUrlsInputBtn.addEventListener("click", copyUrlsInputToClipboard);
+clearUrlsInputBtn.addEventListener("click", clearUrlsInput);
+extractUrlsBtn.addEventListener("click", extractUrlsFromText);
+
+document
+  .querySelectorAll("#open-urls-panel input, #open-urls-panel select")
+  .forEach((el) => {
+    el.addEventListener("change", () => {
+      persistOpenSettings();
+      updateOpenUrlsButtonLabel();
+    });
+  });
 
 chrome.tabs.onCreated.addListener(loadTabs);
 chrome.tabs.onRemoved.addListener(loadTabs);
@@ -404,6 +731,13 @@ chrome.tabs.onAttached.addListener(loadTabs);
 chrome.tabs.onDetached.addListener(loadTabs);
 
 (async function init() {
-  await Promise.all([loadTheme(), loadSortPreference(), loadProtectedUrls()]);
+  await Promise.all([
+    loadTheme(),
+    loadSortPreference(),
+    loadProtectedUrls(),
+    loadCopySettings(),
+    loadOpenSettings(),
+  ]);
+  updateOpenUrlsButtonLabel();
   await loadTabs();
 })();
