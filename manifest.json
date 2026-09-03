@@ -1,13 +1,30 @@
 {
   "manifest_version": 3,
   "name": "Tab URL Manager",
-  "description": "See how many tabs are open (toolbar badge), copy all URLs with one click, open a pasted URL list, group tabs by window, close duplicates, and remove individual tabs.",
-  "version": "1.4.0",
+  "description": "See how many tabs are open (toolbar badge), copy all URLs with one click, find/select links on any page, open a pasted URL list, group tabs by window, close duplicates, and remove individual tabs.",
+  "version": "1.5.0",
   "author": "Muntasir",
-  "permissions": ["tabs", "tabGroups", "clipboardWrite", "clipboardRead", "bookmarks", "storage"],
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "clipboardWrite",
+    "clipboardRead",
+    "bookmarks",
+    "storage",
+    "downloads",
+    "readingList"
+  ],
   "background": {
     "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Tab URL Manager",

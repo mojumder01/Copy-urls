@@ -18,4 +18,12 @@ chrome.windows.onRemoved.addListener(updateBadge);
 chrome.runtime.onStartup.addListener(updateBadge);
 chrome.runtime.onInstalled.addListener(updateBadge);
 
+chrome.runtime.onMessage.addListener((message) => {
+  if (message && message.type === "OPEN_LINKS" && Array.isArray(message.urls)) {
+    for (const url of message.urls) {
+      chrome.tabs.create({ url, active: false });
+    }
+  }
+});
+
 updateBadge();

@@ -1,0 +1,52 @@
+.tum-select-box {
+  position: absolute;
+  border: 1px solid #2563eb;
+  background: rgba(37, 99, 235, 0.15);
+  z-index: 2147483647;
+  pointer-events: none;
+  display: none;
+}
+
+.tum-highlight {
+  outline: 2px solid #f59e0b !important;
+  outline-offset: 1px !important;
+  background: rgba(245, 158, 11, 0.18) !important;
+}
+
+.tum-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  background: #1f2023;
+  color: #f3f4f6;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2147483647;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  max-width: 360px;
+}
+
+.tum-toast span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tum-toast button {
+  cursor: pointer;
+  border: 1px solid #444;
+  background: #2a2b2f;
+  color: #f3f4f6;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.tum-toast button:hover {
+  background: #34363b;
+}

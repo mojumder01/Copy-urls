@@ -402,6 +402,26 @@ header .icon-btn:hover {
   font-size: 10px;
 }
 
+.hint {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+#page-links-result {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+  margin-bottom: 6px;
+}
+
 footer {
   border-top: 1px solid var(--border);
   padding: 6px 14px;

@@ -26,6 +26,8 @@
       <button id="copy-all" class="primary">Copy All URLs</button>
       <button id="close-duplicates">Close Duplicates</button>
       <button id="export-bookmarks">Export as Bookmarks</button>
+      <button id="export-file">Export to File</button>
+      <button id="add-reading-list">Add to Reading List</button>
     </div>
 
     <p id="copy-status" class="status" hidden></p>
@@ -58,6 +60,32 @@
       <div class="panel-actions">
         <button id="restore-copy-defaults">Restore default settings</button>
         <button id="copy-help" class="link-btn">Help</button>
+      </div>
+    </details>
+
+    <details id="page-links-panel" class="panel">
+      <summary>Page Links</summary>
+
+      <p class="hint">
+        Ctrl + drag on the page to select an area and grab its links, or hover any link
+        and press Ctrl+C to copy it instantly.
+      </p>
+
+      <div class="panel-actions">
+        <button id="find-all-page-links" class="primary">Find All Links on Page</button>
+        <button id="get-selection-links">Get Last Selection</button>
+      </div>
+
+      <textarea
+        id="page-links-result"
+        placeholder="Scanned page links will appear here..."
+        rows="4"
+        readonly
+      ></textarea>
+
+      <div class="panel-actions">
+        <button id="copy-page-links">Copy</button>
+        <button id="send-page-links-to-open">Send to Open URLs</button>
       </div>
     </details>
 

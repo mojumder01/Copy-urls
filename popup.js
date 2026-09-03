@@ -6,6 +6,8 @@ const sortByEl = document.getElementById("sort-by");
 const copyAllBtn = document.getElementById("copy-all");
 const closeDuplicatesBtn = document.getElementById("close-duplicates");
 const exportBookmarksBtn = document.getElementById("export-bookmarks");
+const exportFileBtn = document.getElementById("export-file");
+const addReadingListBtn = document.getElementById("add-reading-list");
 const editShortcutBtn = document.getElementById("edit-shortcut");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const copyStatusEl = document.getElementById("copy-status");
@@ -31,6 +33,13 @@ const openFirstNInput = document.getElementById("open-first-n");
 const copyCustomTemplateEl = document.getElementById("copy-custom-template");
 const restoreCopyDefaultsBtn = document.getElementById("restore-copy-defaults");
 const copyHelpBtn = document.getElementById("copy-help");
+
+const findAllPageLinksBtn = document.getElementById("find-all-page-links");
+const getSelectionLinksBtn = document.getElementById("get-selection-links");
+const pageLinksResultEl = document.getElementById("page-links-result");
+const copyPageLinksBtn = document.getElementById("copy-page-links");
+const sendPageLinksToOpenBtn = document.getElementById("send-page-links-to-open");
+const openUrlsPanelEl = document.getElementById("open-urls-panel");
 
 versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 
@@ -365,6 +374,127 @@ async function exportAsBookmarks() {
   showStatus(`Exported ${source.length} tab${source.length === 1 ? "" : "s"} to bookmarks`);
 }
 
+function getFileExtensionForFormat(format) {
+  switch (format) {
+    case "csv":
+      return "csv";
+    case "json":
+      return "json";
+    case "html":
+      return "html";
+    default:
+      return "txt";
+  }
+}
+
+async function exportToFile() {
+  const source = getCopySourceTabs();
+  if (source.length === 0) {
+    showStatus("No matching tabs to export");
+    return;
+  }
+
+  const text = formatTabsForCopy(source);
+  const ext = getFileExtensionForFormat(copySettings.format);
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const filename = `tab-url-manager-${Date.now()}.${ext}`;
+
+  try {
+    await chrome.downloads.download({ url, filename, saveAs: true });
+    showStatus(`Exported ${source.length} tab${source.length === 1 ? "" : "s"} to file`);
+  } catch {
+    showStatus("Download failed or was cancelled");
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+}
+
+async function addToReadingList() {
+  if (!chrome.readingList) {
+    showStatus("Reading List isn't available in this Chrome version");
+    return;
+  }
+
+  const source = getCopySourceTabs();
+  if (source.length === 0) {
+    showStatus("No matching tabs to add");
+    return;
+  }
+
+  let added = 0;
+  for (const tab of source) {
+    try {
+      await chrome.readingList.addEntry({
+        title: tab.title || tab.url,
+        url: tab.url,
+        hasBeenRead: false,
+      });
+      added++;
+    } catch {
+      // already in the Reading List, or an unsupported URL scheme — skip it
+    }
+  }
+  showStatus(`Added ${added} of ${source.length} tab${source.length === 1 ? "" : "s"} to Reading List`);
+}
+
+// --- Page Links (content script) ---
+
+async function getActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+async function requestLinksFromContentScript(type) {
+  const tab = await getActiveTab();
+  if (!tab || !/^https?:\/\//i.test(tab.url || "")) {
+    showStatus("This page doesn't support link scanning");
+    return null;
+  }
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { type });
+    return response ? response.links : [];
+  } catch {
+    showStatus("Reload the page, then try again");
+    return null;
+  }
+}
+
+function renderPageLinks(links) {
+  if (!links) return;
+  pageLinksResultEl.value = links.map((l) => l.url).join("\n");
+  showStatus(`${links.length} link${links.length === 1 ? "" : "s"} found`);
+}
+
+async function findAllPageLinks() {
+  renderPageLinks(await requestLinksFromContentScript("FIND_ALL_LINKS"));
+}
+
+async function getSelectionLinks() {
+  const links = await requestLinksFromContentScript("GET_SELECTION_LINKS");
+  if (links && links.length === 0) {
+    showStatus("No selection yet — Ctrl+drag on the page first");
+    return;
+  }
+  renderPageLinks(links);
+}
+
+async function copyPageLinks() {
+  await navigator.clipboard.writeText(pageLinksResultEl.value);
+  showStatus("Copied to clipboard");
+}
+
+function sendPageLinksToOpenUrls() {
+  if (!pageLinksResultEl.value.trim()) {
+    showStatus("Nothing to send");
+    return;
+  }
+  openUrlsInput.value = pageLinksResultEl.value;
+  openUrlsPanelEl.open = true;
+  updateOpenUrlsButtonLabel();
+  showStatus("Sent to Open URLs panel");
+}
+
 function openShortcutSettings() {
   chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
 }
@@ -696,8 +826,15 @@ sortByEl.addEventListener("change", (e) => setSortBy(e.target.value));
 copyAllBtn.addEventListener("click", copyAllUrls);
 closeDuplicatesBtn.addEventListener("click", closeDuplicateTabs);
 exportBookmarksBtn.addEventListener("click", exportAsBookmarks);
+exportFileBtn.addEventListener("click", exportToFile);
+addReadingListBtn.addEventListener("click", addToReadingList);
 editShortcutBtn.addEventListener("click", openShortcutSettings);
 themeToggleBtn.addEventListener("click", cycleTheme);
+
+findAllPageLinksBtn.addEventListener("click", findAllPageLinks);
+getSelectionLinksBtn.addEventListener("click", getSelectionLinks);
+copyPageLinksBtn.addEventListener("click", copyPageLinks);
+sendPageLinksToOpenBtn.addEventListener("click", sendPageLinksToOpenUrls);
 
 document.querySelectorAll('#copy-settings-panel input[type="radio"]').forEach((el) => {
   el.addEventListener("change", persistCopySettings);
