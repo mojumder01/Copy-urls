@@ -2,9 +2,12 @@ const tabListEl = document.getElementById("tab-list");
 const tabCountEl = document.getElementById("tab-count");
 const emptyStateEl = document.getElementById("empty-state");
 const searchEl = document.getElementById("search");
+const sortByEl = document.getElementById("sort-by");
 const copyAllBtn = document.getElementById("copy-all");
 const closeDuplicatesBtn = document.getElementById("close-duplicates");
+const exportBookmarksBtn = document.getElementById("export-bookmarks");
 const editShortcutBtn = document.getElementById("edit-shortcut");
+const themeToggleBtn = document.getElementById("theme-toggle");
 const copyStatusEl = document.getElementById("copy-status");
 const versionEl = document.getElementById("version");
 
@@ -13,6 +16,9 @@ versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 let allTabs = [];
 let currentWindowId = null;
 let statusTimer = null;
+let sortBy = "window";
+let theme = "system";
+let protectedUrls = new Set();
 
 function showStatus(message) {
   clearTimeout(statusTimer);
@@ -28,6 +34,14 @@ function normalizeUrl(url) {
   return url.replace(/\/$/, "");
 }
 
+function getDomain(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 function getDuplicateUrlSet(tabs) {
   const seen = new Map();
   for (const tab of tabs) {
@@ -41,6 +55,81 @@ function getDuplicateUrlSet(tabs) {
   }
   return duplicates;
 }
+
+// --- theme ---
+
+function applyTheme() {
+  if (theme === "system") {
+    document.documentElement.removeAttribute("data-theme");
+    themeToggleBtn.textContent = "🖥️";
+  } else if (theme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    themeToggleBtn.textContent = "☀️";
+  } else {
+    document.documentElement.setAttribute("data-theme", "dark");
+    themeToggleBtn.textContent = "🌙";
+  }
+  themeToggleBtn.title = `Theme: ${theme} (click to change)`;
+}
+
+async function loadTheme() {
+  const { theme: stored } = await chrome.storage.local.get("theme");
+  theme = stored || "system";
+  applyTheme();
+}
+
+async function cycleTheme() {
+  theme = theme === "system" ? "light" : theme === "light" ? "dark" : "system";
+  await chrome.storage.local.set({ theme });
+  applyTheme();
+}
+
+// --- sort ---
+
+async function loadSortPreference() {
+  const { sortBy: stored } = await chrome.storage.local.get("sortBy");
+  sortBy = stored || "window";
+  sortByEl.value = sortBy;
+}
+
+async function setSortBy(value) {
+  sortBy = value;
+  await chrome.storage.local.set({ sortBy });
+  render();
+}
+
+function sortTabsFlat(tabs) {
+  const copy = [...tabs];
+  if (sortBy === "title") {
+    copy.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  } else if (sortBy === "domain") {
+    copy.sort((a, b) => getDomain(a.url).localeCompare(getDomain(b.url)));
+  } else if (sortBy === "recent") {
+    copy.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+  }
+  return copy;
+}
+
+// --- protected (pinned) tabs ---
+
+async function loadProtectedUrls() {
+  const { protectedUrls: stored } = await chrome.storage.local.get("protectedUrls");
+  protectedUrls = new Set(stored || []);
+}
+
+async function toggleProtected(tab) {
+  const key = normalizeUrl(tab.url);
+  if (!key) return;
+  if (protectedUrls.has(key)) {
+    protectedUrls.delete(key);
+  } else {
+    protectedUrls.add(key);
+  }
+  await chrome.storage.local.set({ protectedUrls: [...protectedUrls] });
+  render();
+}
+
+// --- data loading ---
 
 async function loadTabs() {
   const [tabs, current] = await Promise.all([
@@ -62,6 +151,8 @@ function filterTabs() {
   );
 }
 
+// --- rendering ---
+
 function render() {
   const filtered = filterTabs();
   const duplicateUrls = getDuplicateUrlSet(allTabs);
@@ -70,17 +161,23 @@ function render() {
   tabListEl.innerHTML = "";
   emptyStateEl.hidden = filtered.length > 0;
 
-  const groups = new Map();
-  for (const tab of filtered) {
-    if (!groups.has(tab.windowId)) groups.set(tab.windowId, []);
-    groups.get(tab.windowId).push(tab);
-  }
-
-  let windowNumber = 0;
-  for (const [windowId, tabs] of groups) {
-    windowNumber += 1;
-    tabListEl.appendChild(buildWindowHeader(windowId, windowNumber, tabs.length));
-    for (const tab of tabs) {
+  if (sortBy === "window") {
+    const groups = new Map();
+    for (const tab of filtered) {
+      if (!groups.has(tab.windowId)) groups.set(tab.windowId, []);
+      groups.get(tab.windowId).push(tab);
+    }
+    let windowNumber = 0;
+    for (const [windowId, tabs] of groups) {
+      windowNumber += 1;
+      tabListEl.appendChild(buildWindowHeader(windowId, windowNumber, tabs.length));
+      for (const tab of tabs) {
+        tabListEl.appendChild(buildTabItem(tab, duplicateUrls.has(normalizeUrl(tab.url))));
+      }
+    }
+  } else {
+    const sorted = sortTabsFlat(filtered);
+    for (const tab of sorted) {
       tabListEl.appendChild(buildTabItem(tab, duplicateUrls.has(normalizeUrl(tab.url))));
     }
   }
@@ -108,6 +205,8 @@ function buildTabItem(tab, isDuplicate) {
   const li = document.createElement("li");
   li.className = "tab-item";
   li.dataset.tabId = String(tab.id);
+
+  const isProtected = protectedUrls.has(normalizeUrl(tab.url));
 
   const favicon = document.createElement("img");
   favicon.className = "tab-favicon";
@@ -146,6 +245,12 @@ function buildTabItem(tab, isDuplicate) {
   gotoBtn.textContent = "↗";
   gotoBtn.addEventListener("click", () => switchToTab(tab));
 
+  const pinBtn = document.createElement("button");
+  pinBtn.className = "icon-btn pin-btn" + (isProtected ? " active" : "");
+  pinBtn.title = isProtected ? "Unprotect this tab" : "Protect this tab from closing";
+  pinBtn.textContent = "📌";
+  pinBtn.addEventListener("click", () => toggleProtected(tab));
+
   const copyBtn = document.createElement("button");
   copyBtn.className = "icon-btn copy-btn";
   copyBtn.title = "Copy this URL";
@@ -154,14 +259,22 @@ function buildTabItem(tab, isDuplicate) {
 
   const closeBtn = document.createElement("button");
   closeBtn.className = "icon-btn close-btn";
-  closeBtn.title = "Close this tab";
-  closeBtn.textContent = "✕";
-  closeBtn.addEventListener("click", () => closeTab(tab.id));
+  if (isProtected) {
+    closeBtn.title = "Protected — unpin to close";
+    closeBtn.textContent = "🔒";
+    closeBtn.addEventListener("click", () => showStatus("Unpin this tab to close it"));
+  } else {
+    closeBtn.title = "Close this tab";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => closeTab(tab.id));
+  }
 
-  actions.append(gotoBtn, copyBtn, closeBtn);
+  actions.append(gotoBtn, pinBtn, copyBtn, closeBtn);
   li.append(favicon, info, actions);
   return li;
 }
+
+// --- actions ---
 
 async function switchToTab(tab) {
   await chrome.tabs.update(tab.id, { active: true });
@@ -187,20 +300,27 @@ async function copyAllUrls() {
 }
 
 async function closeDuplicateTabs() {
-  const seenUrls = new Set();
-  const idsToClose = [];
+  const byUrl = new Map();
   for (const tab of allTabs) {
     const key = normalizeUrl(tab.url);
     if (!key) continue;
-    if (seenUrls.has(key)) {
+    if (!byUrl.has(key)) byUrl.set(key, []);
+    byUrl.get(key).push(tab);
+  }
+
+  const idsToClose = [];
+  for (const tabs of byUrl.values()) {
+    if (tabs.length < 2) continue;
+    const keeper = tabs.find((t) => protectedUrls.has(normalizeUrl(t.url))) || tabs[0];
+    for (const tab of tabs) {
+      if (tab.id === keeper.id) continue;
+      if (protectedUrls.has(normalizeUrl(tab.url))) continue;
       idsToClose.push(tab.id);
-    } else {
-      seenUrls.add(key);
     }
   }
 
   if (idsToClose.length === 0) {
-    showStatus("No duplicate tabs found");
+    showStatus("No duplicate tabs to close");
     return;
   }
 
@@ -210,14 +330,38 @@ async function closeDuplicateTabs() {
   showStatus(`Closed ${idsToClose.length} duplicate tab${idsToClose.length === 1 ? "" : "s"}`);
 }
 
+async function exportAsBookmarks() {
+  const source = filterTabs().filter((tab) => tab.url);
+  if (source.length === 0) {
+    showStatus("No tabs to export");
+    return;
+  }
+
+  const folderTitle = `Tab URL Manager – ${new Date().toLocaleString()}`;
+  const folder = await chrome.bookmarks.create({ title: folderTitle });
+  await Promise.all(
+    source.map((tab) =>
+      chrome.bookmarks.create({
+        parentId: folder.id,
+        title: tab.title || tab.url,
+        url: tab.url,
+      })
+    )
+  );
+  showStatus(`Exported ${source.length} tab${source.length === 1 ? "" : "s"} to bookmarks`);
+}
+
 function openShortcutSettings() {
   chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
 }
 
 searchEl.addEventListener("input", render);
+sortByEl.addEventListener("change", (e) => setSortBy(e.target.value));
 copyAllBtn.addEventListener("click", copyAllUrls);
 closeDuplicatesBtn.addEventListener("click", closeDuplicateTabs);
+exportBookmarksBtn.addEventListener("click", exportAsBookmarks);
 editShortcutBtn.addEventListener("click", openShortcutSettings);
+themeToggleBtn.addEventListener("click", cycleTheme);
 
 chrome.tabs.onCreated.addListener(loadTabs);
 chrome.tabs.onRemoved.addListener(loadTabs);
@@ -225,4 +369,7 @@ chrome.tabs.onUpdated.addListener(loadTabs);
 chrome.tabs.onAttached.addListener(loadTabs);
 chrome.tabs.onDetached.addListener(loadTabs);
 
-loadTabs();
+(async function init() {
+  await Promise.all([loadTheme(), loadSortPreference(), loadProtectedUrls()]);
+  await loadTabs();
+})();

@@ -9,15 +9,23 @@
     <header>
       <h1>Open Tabs</h1>
       <span id="tab-count" class="badge">0</span>
+      <button id="theme-toggle" class="icon-btn" title="Toggle theme">🖥️</button>
     </header>
 
     <div class="toolbar">
       <input id="search" type="search" placeholder="Filter tabs..." />
+      <select id="sort-by" title="Sort tabs by">
+        <option value="window">By window</option>
+        <option value="title">By title</option>
+        <option value="domain">By domain</option>
+        <option value="recent">Recently active</option>
+      </select>
     </div>
 
     <div class="toolbar actions-row">
       <button id="copy-all" class="primary">Copy All URLs</button>
       <button id="close-duplicates">Close Duplicates</button>
+      <button id="export-bookmarks">Export as Bookmarks</button>
     </div>
 
     <p id="copy-status" class="status" hidden></p>

@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "Tab URL Manager",
   "description": "See how many tabs are open (toolbar badge), copy all URLs with one click, group tabs by window, close duplicates, and remove individual tabs.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Muntasir",
-  "permissions": ["tabs", "clipboardWrite"],
+  "permissions": ["tabs", "clipboardWrite", "bookmarks", "storage"],
   "background": {
     "service_worker": "background.js"
   },
