@@ -262,6 +262,61 @@ header .icon-btn:hover {
   flex-shrink: 0;
 }
 
+.panel {
+  margin: 0 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  list-style: none;
+}
+
+.panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.panel summary::before {
+  content: "▸ ";
+}
+
+.panel[open] summary::before {
+  content: "▾ ";
+}
+
+.panel textarea {
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 footer {
   border-top: 1px solid var(--border);
   padding: 6px 14px;

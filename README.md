@@ -2,12 +2,13 @@
 
 A Chrome extension that shows how many tabs you have open, lets you copy all URLs with one click, and remove individual tabs from a popup list.
 
-**Version 1.2.0** · Built by Muntasir
+**Version 1.3.0** · Built by Muntasir
 
 ## Features
 
 - **Toolbar badge** — the open-tab count is always visible on the extension icon itself (top-right corner), no click needed.
 - **Copy All URLs** — copies every open tab's URL (newline-separated) to the clipboard in one click. If a search filter is active, only the filtered URLs are copied.
+- **Open URLs** — paste a list of URLs (one per line) into the "Open URLs" panel and click "Open All" to open every one as a new tab, or all together in a new window.
 - **Sort options** — order the list by window (default grouping), title, domain, or most-recently-active tab. Your choice is remembered.
 - **Grouped by window** — (when sorted "By window") tabs are listed under "Window 1", "Window 2", etc., with the currently focused window tagged `current`.
 - **Close Duplicates** — one click closes every tab that shares a URL with an earlier tab, keeping the first of each (or the pinned one — see below).

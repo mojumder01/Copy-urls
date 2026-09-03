@@ -10,6 +10,9 @@ const editShortcutBtn = document.getElementById("edit-shortcut");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const copyStatusEl = document.getElementById("copy-status");
 const versionEl = document.getElementById("version");
+const openUrlsInput = document.getElementById("open-urls-input");
+const openUrlsBtn = document.getElementById("open-urls-btn");
+const openNewWindowCheckbox = document.getElementById("open-new-window");
 
 versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 
@@ -355,6 +358,36 @@ function openShortcutSettings() {
   chrome.tabs.create({ url: "chrome://extensions/shortcuts" });
 }
 
+function toOpenableUrl(rawLine) {
+  const trimmed = rawLine.trim();
+  if (!trimmed) return null;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return trimmed;
+  if (/^[\w-]+(\.[\w-]+)+([/?#].*)?$/.test(trimmed)) return `https://${trimmed}`;
+  return null;
+}
+
+async function openUrlsFromInput() {
+  const rawLines = openUrlsInput.value.split("\n");
+  const urls = [...new Set(rawLines.map(toOpenableUrl).filter(Boolean))];
+
+  if (urls.length === 0) {
+    showStatus("Paste at least one valid URL");
+    return;
+  }
+
+  if (openNewWindowCheckbox.checked) {
+    await chrome.windows.create({ url: urls });
+  } else {
+    for (const url of urls) {
+      await chrome.tabs.create({ url, active: false });
+    }
+  }
+
+  openUrlsInput.value = "";
+  showStatus(`Opened ${urls.length} URL${urls.length === 1 ? "" : "s"}`);
+  await loadTabs();
+}
+
 searchEl.addEventListener("input", render);
 sortByEl.addEventListener("change", (e) => setSortBy(e.target.value));
 copyAllBtn.addEventListener("click", copyAllUrls);
@@ -362,6 +395,7 @@ closeDuplicatesBtn.addEventListener("click", closeDuplicateTabs);
 exportBookmarksBtn.addEventListener("click", exportAsBookmarks);
 editShortcutBtn.addEventListener("click", openShortcutSettings);
 themeToggleBtn.addEventListener("click", cycleTheme);
+openUrlsBtn.addEventListener("click", openUrlsFromInput);
 
 chrome.tabs.onCreated.addListener(loadTabs);
 chrome.tabs.onRemoved.addListener(loadTabs);
