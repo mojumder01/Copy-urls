@@ -6,6 +6,9 @@ const copyAllBtn = document.getElementById("copy-all");
 const closeDuplicatesBtn = document.getElementById("close-duplicates");
 const editShortcutBtn = document.getElementById("edit-shortcut");
 const copyStatusEl = document.getElementById("copy-status");
+const versionEl = document.getElementById("version");
+
+versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
 
 let allTabs = [];
 let currentWindowId = null;

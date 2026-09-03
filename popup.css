@@ -237,3 +237,9 @@ footer {
   color: var(--accent);
   background: none;
 }
+
+.credit {
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 2px;
+}

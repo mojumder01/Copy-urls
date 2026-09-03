@@ -2,6 +2,8 @@
 
 A Chrome extension that shows how many tabs you have open, lets you copy all URLs with one click, and remove individual tabs from a popup list.
 
+**Version 1.1.0** · Built by Muntasir
+
 ## Features
 
 - **Toolbar badge** — the open-tab count is always visible on the extension icon itself (top-right corner), no click needed.
